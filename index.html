@@ -13,12 +13,12 @@
       <div class="brand-mark">🔥</div>
       <div class="brand-text">
         <h1>末日卡牌堆 <span>余烬</span></h1>
-        <p>10 天，撑到救援</p>
+        <p>15 天，撑到救援</p>
       </div>
     </div>
 
     <div class="hud">
-      <div class="hud-item day"><span>DAY</span><b id="hudDay">1</b><small>/10</small></div>
+      <div class="hud-item day"><span>DAY</span><b id="hudDay">1</b><small>/15</small></div>
       <div class="hud-item"><img src="assets/icons/resource_apple.png" alt=""><b id="hudFood">6</b></div>
       <div class="hud-item"><img src="assets/icons/resource_wood.png" alt=""><b id="hudWood">8</b></div>
       <div class="hud-item"><img src="assets/icons/resource_iron.png" alt=""><b id="hudMetal">3</b></div>
@@ -43,14 +43,14 @@
               <span>·</span>
               <img src="assets/icons/shield.png" alt=""><b id="miniDef">3</b>
             </div>
-            <div class="ap-box"><span>行动点</span><b id="apLabel">3</b><small>/ 3</small></div>
+            <div class="ap-box"><span>行动点</span><b id="apLabel">4</b><small>/ 4</small></div>
           </div>
         </div>
 
         <div id="board" class="board" aria-label="营地棋盘"></div>
 
         <div class="camp-foot">
-          <span id="campHint">点手牌 → 点空位；点两张营地牌可以合成。</span>
+          <span id="campHint">点手牌 → 点空位；升级/合成在卡牌详情里。</span>
           <span class="camp-legend"><i class="dot survivor"></i>人 <i class="dot structure"></i>建筑 <i class="dot item"></i>道具 <span class="parts-mini">📻 <b id="partsMini">0/3</b></span></span>
         </div>
       </div>
@@ -66,12 +66,31 @@
 
       <div class="actions">
         <button id="exploreBtn" class="action-btn">🔍 探索 <small>1 AP</small></button>
+        <button id="workshopBtn" class="action-btn">🛠️ 工坊</button>
+        <button id="opsBtn" class="action-btn">🎛️ 行动</button>
         <button id="endDayBtn" class="action-btn primary">🌙 结束白天</button>
-        <button id="supplyBtn" class="action-btn ghost">📺 空投补给</button>
       </div>
     </section>
 
     <aside class="side-col">
+      <div class="panel status-panel">
+        <div class="panel-title"><h3>营地状态</h3><span id="actLabel">ACT I</span></div>
+        <div class="weather-row">
+          <span id="weatherIcon">☀️</span>
+          <b id="weatherName">晴</b>
+          <span id="weatherDesc">今夜耗柴 2</span>
+        </div>
+        <div class="morale-row">
+          <span>士气</span>
+          <div class="meter"><i id="moraleBar"></i></div>
+          <b id="moraleLabel">60</b>
+        </div>
+        <div class="status-grid">
+          <div><span>研究</span><b id="researchLabel">0</b></div>
+          <div><span>临时防御</span><b id="tempDefLabel">0</b></div>
+        </div>
+      </div>
+
       <div class="panel night-panel">
         <div class="panel-title"><h3>今夜</h3><span id="nightPhase">天黑前</span></div>
         <div class="night-row">
@@ -85,7 +104,7 @@
       <div class="panel objective-panel">
         <div class="panel-title"><h3>救援</h3><span id="radioState">未建电台</span></div>
         <div id="partsRow" class="parts-row"></div>
-        <p>集齐 3 个零件，建电台，第 10 天呼叫救援。</p>
+        <p>集齐 3 个零件，建电台，第 15 天呼叫救援。</p>
       </div>
 
       <div class="panel log-panel">
@@ -103,3 +122,4 @@
 <script src="game.js"></script>
 </body>
 </html>
+
