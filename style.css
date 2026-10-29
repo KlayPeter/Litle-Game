@@ -204,6 +204,8 @@ img{user-select:none;-webkit-user-drag:none}
 .detail b{color:#f0f7ea}
 .detail-btn{display:inline-flex; align-items:center; gap:4px; margin:5px 4px 0 0; border:1px solid rgba(255,209,102,.35); background:rgba(255,209,102,.1); color:var(--gold); border-radius:8px; padding:4px 8px; font-size:9px; font-weight:900; cursor:pointer}
 .detail-btn:disabled{opacity:.35; cursor:not-allowed}
+.detail-btn.danger{border-color:rgba(239,71,111,.38); background:rgba(239,71,111,.08); color:#ff9db2}
+.primary.danger-primary{background:#ef476f; color:#fff}
 .card .level{position:absolute; left:3px; bottom:2px; z-index:2; font-size:6px; font-weight:900; color:#7a4b0c; background:rgba(255,248,229,.72); border-radius:4px; padding:0 3px}
 .card .wound{position:absolute; right:3px; top:14px; z-index:2; font-size:8px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
 .card .away{position:absolute; left:3px; top:14px; z-index:2; font-size:8px}

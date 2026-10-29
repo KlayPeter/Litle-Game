@@ -1,4 +1,4 @@
-﻿/* 末日卡牌堆 · 余烬 2.0 — 单文件游戏逻辑 */
+/* 末日卡牌堆 · 余烬 2.0 — 单文件游戏逻辑 */
 (() => {
   'use strict';
 
@@ -495,6 +495,22 @@
   function upgradeResearch(next) {
     return Math.max(0, (next.research || 0) - (state.leader === 'engineer' ? 1 : 0));
   }
+  function salvageYield(card) {
+    if (SURVIVOR_TYPES.includes(card.type)) return {};
+    const cost = CARD[card.type].cost || {};
+    const out = {};
+    for (const k of ['wood', 'metal', 'food']) {
+      if (cost[k]) out[k] = Math.max(1, Math.floor(cost[k] / 2));
+    }
+    if (!Object.keys(out).length) out.wood = 1;
+    if (card.level > 1) out.wood = (out.wood || 0) + 1;
+    return out;
+  }
+  function salvageText(y) {
+    const map = { food: '食', wood: '木', metal: '金' };
+    const s = Object.entries(y).map(([k, v]) => `+${v}${map[k] || k}`).join(' ');
+    return s || '腾出位置';
+  }
   function prodText(prod) {
     const map = { food: '食', wood: '木', metal: '金', medicine: '药', research: '研' };
     return Object.entries(prod || {}).map(([k, v]) => `+${v}${map[k] || k}`).join(' ');
@@ -578,6 +594,11 @@
     $('opsBtn').disabled = state.phase !== 'day';
     $('endDayBtn').disabled = state.phase !== 'day';
     $('logDay').textContent = `DAY ${state.day}`;
+    const full = state.board.every(Boolean);
+    const hint = $('campHint');
+    if (hint) hint.textContent = full
+      ? '营地满了：点营地牌拆解，或选手牌再点营地牌替换；能合成也会腾位置。'
+      : '点手牌 → 点空位；升级/合成在卡牌详情里。';
   }
 
   function renderStatus() {
@@ -688,7 +709,8 @@
       const card = state.hand.find(c => c.uid === state.selectedHand);
       if (card) {
         const d = getData(card);
-        el.innerHTML = `<b>${d.name}</b> · 费用 ${costText(d.cost)} · ${d.desc}`;
+        el.innerHTML = `<b>${d.name}</b> · 费用 ${costText(d.cost)} · ${d.desc}<br><button class="detail-btn" id="discardHandBtn">弃掉这张牌</button>`;
+        $('discardHandBtn').onclick = () => discardHandCard(card.uid);
         return;
       }
     }
@@ -714,12 +736,17 @@
         } else if (card.type === 'radio') {
           html += '<br><span style="color:#c4b5fd">救援核心：第 15 天判定。</span>';
         }
+        const y = salvageYield(card);
+        html += `<button class="detail-btn danger" id="salvageBtn">${SURVIVOR_TYPES.includes(card.type) ? '让 Ta 离开' : '拆解'} · ${salvageText(y)}</button>`;
         el.innerHTML = html;
         if (next && $('upgradeBtn')) $('upgradeBtn').onclick = () => upgradeCard(state.selectedBoard);
+        $('salvageBtn').onclick = () => confirmSalvage(state.selectedBoard);
         return;
       }
     }
-    el.textContent = '点一张手牌查看详情；点营地牌可升级/合成。';
+    el.textContent = state.board.every(Boolean)
+      ? '营地满了：点一张营地牌拆解，或先选手牌再点营地牌替换；两张牌能合成时也会腾出位置。'
+      : '点一张手牌查看详情；点营地牌可升级/合成。';
   }
 
   // ---------- selection / play ----------
@@ -727,7 +754,110 @@
     if (state.phase !== 'day') return;
     state.selectedHand = state.selectedHand === uidValue ? null : uidValue;
     state.selectedBoard = null;
+    if (state.selectedHand !== null && state.board.every(Boolean)) {
+      toast('营地满了：点一张营地牌替换，或点牌拆解');
+    }
     render();
+  }
+
+  function discardHandCard(uidValue) {
+    if (state.phase !== 'day') return;
+    const card = state.hand.find(c => c.uid === uidValue);
+    if (!card) return;
+    state.hand = state.hand.filter(c => c.uid !== uidValue);
+    state.discard.push(card.type);
+    state.selectedHand = null;
+    log(`弃掉 <b>${CARD[card.type].name}</b>。`, '');
+    sound('slide');
+    render();
+  }
+
+  function confirmModal({ title, text, okLabel, onOk, danger = false }) {
+    overlay(`<div class="modal">
+      <div class="kicker">${danger ? '不可撤回' : '确认'}</div>
+      <h2>${title}</h2>
+      <p>${text}</p>
+      <button class="primary ${danger ? 'danger-primary' : ''}" id="confirmOk">${okLabel}</button>
+      <button class="ghost" id="confirmCancel">取消</button>
+    </div>`);
+    $('confirmOk').onclick = () => { closeOverlay(); onOk(); };
+    $('confirmCancel').onclick = () => { closeOverlay(); render(); };
+  }
+
+  function confirmSalvage(index) {
+    const card = state.board[index];
+    if (!card) return;
+    const d = getData(card);
+    const y = salvageYield(card);
+    const survivor = SURVIVOR_TYPES.includes(card.type);
+    confirmModal({
+      title: survivor ? `让 ${d.name} 离开？` : `拆解 ${d.name}？`,
+      text: survivor
+        ? '会失去这名幸存者，腾出一个营地位置。士气 -3。'
+        : `会失去这张牌，腾出一个营地位置，获得 ${salvageText(y)}。`,
+      okLabel: survivor ? '让 Ta 离开' : '拆解',
+      danger: true,
+      onOk: () => salvageCard(index)
+    });
+  }
+
+  function salvageCard(index) {
+    if (state.phase !== 'day') return;
+    const card = state.board[index];
+    if (!card) return;
+    const d = getData(card);
+    const survivor = SURVIVOR_TYPES.includes(card.type);
+    const y = salvageYield(card);
+    state.board[index] = null;
+    state.selectedBoard = null;
+    if (survivor) {
+      state.morale = Math.max(0, state.morale - 3);
+      log(`<b>${d.name}</b>离开了营地。士气 -3。`, 'bad');
+    } else {
+      for (const [k, v] of Object.entries(y)) state[k] += v;
+      log(`拆解 <b>${d.name}</b>：${salvageText(y)}。`, 'good');
+    }
+    sound('combine');
+    render();
+    if (survivors() <= 0 || state.morale <= 0) { endGame('bad'); return; }
+    toast(survivor ? '位置腾出来了' : `位置腾出来了 · ${salvageText(y)}`);
+  }
+
+  function showReplaceConfirm(index) {
+    if (state.phase !== 'day' || state.selectedHand === null) return;
+    const hand = state.hand.find(c => c.uid === state.selectedHand);
+    const old = state.board[index];
+    if (!hand || !old) return;
+    if (state.ap < 1) { toast('行动点不够：可以先拆解一张牌，拆解不花 AP'); return; }
+    const d = getData(hand);
+    if (!canAfford(d.cost)) { toast(`资源不够：需要 ${costText(d.cost)}`); return; }
+    confirmModal({
+      title: `用 ${d.name} 替换 ${getData(old).name}？`,
+      text: `花 1 AP 和 ${costText(d.cost)}。旧牌会离开营地，新牌直接放上去。`,
+      okLabel: '替换',
+      onOk: () => replaceCard(index, hand.uid)
+    });
+  }
+
+  function replaceCard(index, uidValue) {
+    if (state.phase !== 'day') return;
+    if (state.ap < 1) { toast('行动点不够'); return; }
+    const hand = state.hand.find(c => c.uid === uidValue);
+    const old = state.board[index];
+    if (!hand || !old) return;
+    const d = getData(hand);
+    if (!canAfford(d.cost)) { toast(`资源不够：需要 ${costText(d.cost)}`); return; }
+    payCost(d.cost);
+    state.ap--;
+    state.hand = state.hand.filter(c => c.uid !== uidValue);
+    if (!SURVIVOR_TYPES.includes(old.type)) state.discard.push(old.type);
+    state.board[index] = hand;
+    state.selectedHand = null;
+    state.selectedBoard = index;
+    sound('place');
+    log(`替换：<b>${getData(old).name}</b> → <b>${d.name}</b>。`, 'good');
+    render();
+    toast('替换完成');
   }
 
   function selectBoard(index) {
@@ -1610,6 +1740,7 @@
         <li><b>工坊：</b>花资源直接造牌；<b>行动：</b>加固、热汤、治疗、研究、空投。</li>
         <li><b>探索：</b>派 1-2 人出门，带回资源/卡牌，但今晚不防守，也可能受伤。</li>
         <li><b>过夜：</b>烧柴、生产、吃饭、挡夜袭；防御不够可牺牲牌或让人受伤。</li>
+        <li><b>营地满了：</b>点营地牌可拆解/让幸存者离开；或选手牌再点营地牌替换，不会卡死。</li>
         <li><b>目标：</b>3 个电台零件 + 电台，撑到第 15 天。</li>
         <li><b>传承：</b>每局结束拿余烬，回营地买永久升级/解锁领袖。</li>
       </ul>
@@ -1737,7 +1868,7 @@
       const boardCard = e.target.closest('[data-board]');
       if (boardCard) {
         const idx = Number(boardCard.dataset.board);
-        if (state.selectedHand !== null) { state.selectedHand = null; selectBoard(idx); return; }
+        if (state.selectedHand !== null) { showReplaceConfirm(idx); return; }
         if (state.selectedBoard !== null && state.selectedBoard !== idx) { combineBoard(idx); return; }
         selectBoard(idx);
         return;
@@ -1782,6 +1913,7 @@
     showMeta, showAchievements, continueEndless, checkAchievements
   };
 })();
+
 
 
 
