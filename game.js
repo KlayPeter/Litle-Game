@@ -1,4 +1,4 @@
-/* 末日卡牌堆 · 余烬 2.0 — 单文件游戏逻辑 */
+﻿/* 末日卡牌堆 · 余烬 2.0 — 单文件游戏逻辑 */
 (() => {
   'use strict';
 
@@ -287,6 +287,106 @@
     'workbench', 'medic', 'guard', 'trap', 'engineer', 'survivor', 'bow', 'radio', 'wall'
   ];
 
+  // ---------- meta / profile ----------
+  const PROFILE_KEY = 'ember-camp-profile-v3';
+  const LEADERS = [
+    { id: 'scavenger', name: '拾荒者', icon: 'pouch', cost: 0, desc: '探索多带 1 份资源，探索风险 -5%。' },
+    { id: 'engineer', name: '工程师', icon: 'resource_planks', cost: 60, desc: '工坊制造少 1 金属；卡牌升级少 1 研究。' },
+    { id: 'medic', name: '医者', icon: 'flask_full', cost: 80, desc: '开局多 1 药品；伤员恢复快 1 天。' }
+  ];
+
+  const META_UPGRADES = [
+    { id: 'supply', name: '补给线', icon: 'resource_apple', max: 3, cost: 30, desc: '开局食物 +2/级' },
+    { id: 'wood', name: '木料堆', icon: 'resource_wood', max: 3, cost: 30, desc: '开局木头 +2/级' },
+    { id: 'metal', name: '工具箱', icon: 'resource_iron', max: 3, cost: 35, desc: '开局金属 +1/级' },
+    { id: 'medicine', name: '药柜', icon: 'flask_full', max: 3, cost: 40, desc: '开局药品 +1/级' },
+    { id: 'morale', name: '篝火余温', icon: 'campfire', max: 3, cost: 35, desc: '开局士气 +8/级' },
+    { id: 'fuel', name: '保暖层', icon: 'structure_house', max: 2, cost: 50, desc: '每晚耗柴 -1/级' }
+  ];
+
+  const ACHIEVEMENTS = [
+    { id: 'day5', name: '活过第 5 天', desc: '单局撑到第 5 天', reward: 20, check: () => state.day >= 5 },
+    { id: 'rescue', name: '电台响了', desc: '完成一次救援结局', reward: 50, check: () => state.endKind === 'good' },
+    { id: 'lv3', name: '满级营地', desc: '把一张牌升到 Lv.3', reward: 30, check: () => state.maxCardLevel >= 3 },
+    { id: 'survivors5', name: '人丁兴旺', desc: '单局拥有 5 名幸存者', reward: 30, check: () => state.runStats.maxSurvivors >= 5 },
+    { id: 'scav10', name: '拾荒十次', desc: '累计探索 10 次', reward: 30, check: () => profile.stats.scavenges >= 10 },
+    { id: 'wins3', name: '老手', desc: '累计完成 3 次救援', reward: 80, check: () => profile.stats.wins >= 3 }
+  ];
+
+  const DAILY_MODS = [
+    { id: 'cold', name: '寒潮', icon: '❄️', desc: '耗柴 +1，开局木头 +2', fuel: 1, start: { wood: 2 } },
+    { id: 'raiders', name: '掠夺者', icon: '☠️', desc: '夜袭 +1，开局金属 +1', attack: 1, start: { metal: 1 } },
+    { id: 'fog', name: '浓雾', icon: '🌫️', desc: '探索风险 +10%，开局食物 +2', scavRisk: 0.1, start: { food: 2 } },
+    { id: 'harvest', name: '丰收', icon: '🌾', desc: '开局食物 +3，士气 +5', morale: 5, start: { food: 3 } }
+  ];
+
+  const DEFAULT_PROFILE = {
+    embers: 0,
+    upgrades: { supply: 0, wood: 0, metal: 0, medicine: 0, morale: 0, fuel: 0 },
+    leaders: ['scavenger'],
+    achievements: {},
+    stats: { runs: 0, wins: 0, bestDay: 0, bestScore: 0, scavenges: 0 },
+    daily: { date: '', best: 0, streak: 0, lastDate: '' },
+    leaderboard: []
+  };
+
+  function loadProfile() {
+    let p = null;
+    try { p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); } catch (e) {}
+    const merged = {
+      ...DEFAULT_PROFILE,
+      ...(p || {}),
+      upgrades: { ...DEFAULT_PROFILE.upgrades, ...((p && p.upgrades) || {}) },
+      achievements: { ...((p && p.achievements) || {}) },
+      stats: { ...DEFAULT_PROFILE.stats, ...((p && p.stats) || {}) },
+      daily: { ...DEFAULT_PROFILE.daily, ...((p && p.daily) || {}) },
+      leaderboard: Array.isArray(p && p.leaderboard) ? p.leaderboard : []
+    };
+    if (!Array.isArray(merged.leaders) || !merged.leaders.length) merged.leaders = ['scavenger'];
+    return merged;
+  }
+  function saveProfile() {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {}
+  }
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function yesterdayKey() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function hashString(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    return function () {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function metaCost(up) {
+    const level = profile.upgrades[up.id] || 0;
+    return up.cost * (level + 1);
+  }
+  function leaderById(id) {
+    return LEADERS.find(l => l.id === id) || LEADERS[0];
+  }
+  function isDaily() { return state.mode === 'daily'; }
+  function isEndless() { return state.mode === 'endless'; }
+
+  let profile = loadProfile();
+  let runRng = Math.random;
+  function rng() { return runRng(); }
+
   // ---------- state ----------
   let uidCounter = 0;
   const state = {
@@ -297,7 +397,11 @@
     selectedHand: null, selectedBoard: null,
     explored: false, scavengeTeam: [], adUsed: false, sound: true,
     phase: 'tutorial', started: false, eventSeen: [], log: [],
-    best: 0, score: 0, firstPlay: false, firstCombine: false, firstUpgrade: false
+    best: 0, score: 0, firstPlay: false, firstCombine: false, firstUpgrade: false,
+    mode: 'standard', leader: 'scavenger', dailyMod: null, endless: false,
+    fuelDiscount: 0, maxCardLevel: 1, endKind: null, embersEarned: 0,
+    runStats: { scavenges: 0, upgrades: 0, crafts: 0, maxSurvivors: 0 },
+    pendingLeader: 'scavenger'
   };
 
   const SOUND = {
@@ -320,12 +424,12 @@
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
   }
-  function random(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function random(arr) { return arr[Math.floor(rng() * arr.length)]; }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   function currentWeather() { return WEATHERS.find(w => w.id === state.weather) || WEATHERS[0]; }
   function survivors() { return state.board.filter(c => c && SURVIVOR_TYPES.includes(c.type)).length; }
@@ -333,8 +437,11 @@
   function woundedSurvivors() { return state.board.filter(c => c && SURVIVOR_TYPES.includes(c.type) && c.wounded > 0); }
   function hasCard(type) { return state.board.some(c => c && c.type === type); }
   function boardCards() { return state.board.map((c, i) => c ? { ...c, slot: i } : null).filter(Boolean); }
-  function attack() { return 2 + state.day + (state.day >= 11 ? 2 : 0); }
-  function fuelNeed() { return currentWeather().fuel + Math.floor(survivors() / 3); }
+  function attack() { return 2 + state.day + (state.day >= 11 ? 2 : 0) + (state.dailyMod && state.dailyMod.attack ? state.dailyMod.attack : 0); }
+  function fuelNeed() {
+    const base = currentWeather().fuel + Math.floor(survivors() / 3) + (state.dailyMod && state.dailyMod.fuel ? state.dailyMod.fuel : 0);
+    return Math.max(0, base - (state.fuelDiscount || 0));
+  }
   function moraleMult() { return state.morale >= 80 ? 1.1 : state.morale < 30 ? 0.75 : 1; }
   function actName() { return state.day <= 5 ? 'ACT I' : state.day <= 10 ? 'ACT II' : 'ACT III'; }
   function sound(name) {
@@ -354,8 +461,8 @@
     const el = document.createElement('div');
     el.className = 'float ' + kind;
     el.textContent = text;
-    el.style.left = (16 + Math.random() * 68) + '%';
-    el.style.top = (30 + Math.random() * 35) + '%';
+    el.style.left = (16 + rng() * 68) + '%';
+    el.style.top = (30 + rng() * 35) + '%';
     $('floats').appendChild(el);
     setTimeout(() => el.remove(), 950);
   }
@@ -379,6 +486,14 @@
     if (!cost) return '免费';
     const map = { food: '食物', wood: '木', metal: '金属', medicine: '药' };
     return Object.entries(cost).map(([k, v]) => `${v}${map[k] || k}`).join(' + ');
+  }
+  function craftCost(craft) {
+    const c = { ...(craft.cost || {}) };
+    if (state.leader === 'engineer' && c.metal) c.metal = Math.max(0, c.metal - 1);
+    return c;
+  }
+  function upgradeResearch(next) {
+    return Math.max(0, (next.research || 0) - (state.leader === 'engineer' ? 1 : 0));
   }
   function prodText(prod) {
     const map = { food: '食', wood: '木', metal: '金', medicine: '药', research: '研' };
@@ -436,6 +551,8 @@
 
   // ---------- render ----------
   function render() {
+    state.runStats.maxSurvivors = Math.max(state.runStats.maxSurvivors || 0, survivors());
+    state.maxCardLevel = Math.max(state.maxCardLevel || 1, ...state.board.filter(Boolean).map(c => c.level || 1));
     const stats = getStats();
     renderHud(stats);
     renderStatus();
@@ -467,12 +584,12 @@
     const w = currentWeather();
     $('weatherIcon').textContent = w.icon;
     $('weatherName').textContent = w.name;
-    $('weatherDesc').textContent = `${w.desc} · 需柴 ${fuelNeed()}`;
+    $('weatherDesc').textContent = `${w.desc} · 需柴 ${fuelNeed()}${state.dailyMod ? ' · ' + state.dailyMod.name : ''}`;
     $('moraleLabel').textContent = Math.round(state.morale);
     $('moraleBar').style.width = clamp(state.morale, 0, 100) + '%';
     $('researchLabel').textContent = state.research;
     $('tempDefLabel').textContent = state.tempDef;
-    $('actLabel').textContent = actName();
+    $('actLabel').textContent = state.mode === 'daily' ? 'DAILY' : state.mode === 'endless' ? 'ENDLESS' : actName();
   }
 
   function cardClass(type) {
@@ -591,8 +708,9 @@
         const recipes = RECIPES.filter(r => r.a === card.type || r.b === card.type);
         if (recipes.length) html += ` · 可合成：${recipes.map(r => `${CARD[r.a].name}+${CARD[r.b].name}=${CARD[r.out].name}`).join('；')}`;
         if (next) {
-          const can = state.ap >= 1 && canAfford(next.cost) && state.research >= (next.research || 0);
-          html += `<br><button class="detail-btn" id="upgradeBtn" ${can ? '' : 'disabled'}>升级 Lv.${card.level + 1} · ${costText(next.cost)}${next.research ? ' + ' + next.research + '研究' : ''}</button>`;
+          const needResearch = upgradeResearch(next);
+          const can = state.ap >= 1 && canAfford(next.cost) && state.research >= needResearch;
+          html += `<br><button class="detail-btn" id="upgradeBtn" ${can ? '' : 'disabled'}>升级 Lv.${card.level + 1} · ${costText(next.cost)}${needResearch ? ' + ' + needResearch + '研究' : ''}</button>`;
         } else if (card.type === 'radio') {
           html += '<br><span style="color:#c4b5fd">救援核心：第 15 天判定。</span>';
         }
@@ -685,10 +803,12 @@
     if (state.ap < 1) { toast('行动点不够'); return; }
     const next = levels[card.level];
     if (!canAfford(next.cost)) { toast(`资源不够：需要 ${costText(next.cost)}`); return; }
-    if (state.research < (next.research || 0)) { toast(`研究点不够：需要 ${next.research}`); return; }
+    const needResearch = upgradeResearch(next);
+    if (state.research < needResearch) { toast(`研究点不够：需要 ${needResearch}`); return; }
     payCost(next.cost);
-    state.research -= (next.research || 0);
+    state.research -= needResearch;
     state.ap--;
+    state.runStats.upgrades++;
     card.level++;
     sound('combine');
     log(`升级 <b>${CARD[card.type].name}</b> 到 Lv.${card.level}。`, 'good');
@@ -703,7 +823,8 @@
     state.phase = 'workshop';
     const rows = CRAFTS.map(c => {
       const d = CARD[c.type];
-      const can = state.ap >= 1 && canAfford(c.cost) && (!c.requiresParts || state.parts >= c.requiresParts);
+      const cc = craftCost(c);
+      const can = state.ap >= 1 && canAfford(cc) && (!c.requiresParts || state.parts >= c.requiresParts);
       const lock = c.requiresParts && state.parts < c.requiresParts ? `需要 ${c.requiresParts} 个零件` : '';
       return `<div class="craft-row">
         <img src="assets/icons/${d.icon}.png" alt="">
@@ -729,10 +850,12 @@
     if (!craft) return;
     if (state.phase !== 'workshop') return;
     if (state.ap < 1) { toast('行动点不够'); return; }
-    if (!canAfford(craft.cost)) { toast(`资源不够：需要 ${costText(craft.cost)}`); return; }
+    const cc = craftCost(craft);
+    if (!canAfford(cc)) { toast(`资源不够：需要 ${costText(cc)}`); return; }
     if (craft.requiresParts && state.parts < craft.requiresParts) { toast(`还需要 ${craft.requiresParts} 个零件`); return; }
-    payCost(craft.cost);
+    payCost(cc);
     state.ap--;
+    state.runStats.crafts++;
     addCardToHand(type);
     log(`工坊制造 <b>${CARD[type].name}</b>。`, 'good');
     sound('place');
@@ -872,18 +995,22 @@
 
     state.ap--;
     state.explored = true;
+    state.runStats.scavenges++;
     team.forEach(c => c.away = true);
     const scav = team.some(c => c.type === 'scavenger');
     const hunter = team.some(c => c.type === 'hunter');
     const factor = 1 + 0.35 * (team.length - 1);
-    let risk = loc.risk + currentWeather().risk + 0.06 * (team.length - 1) - (hunter ? 0.06 : 0);
+    let risk = loc.risk + currentWeather().risk + 0.06 * (team.length - 1) - (hunter ? 0.06 : 0)
+      - (state.leader === 'scavenger' ? 0.05 : 0)
+      + (state.dailyMod && state.dailyMod.scavRisk ? state.dailyMod.scavRisk : 0);
     risk = clamp(risk, 0.05, 0.75);
 
     const rewards = { ...loc.rewards };
+    const leaderBonus = state.leader === 'scavenger' ? 1 : 0;
     for (const k of ['food', 'wood', 'metal']) {
-      if (rewards[k] > 0) rewards[k] = Math.max(1, Math.round(rewards[k] * factor + (scav ? 1 : 0)));
+      if (rewards[k] > 0) rewards[k] = Math.max(1, Math.round(rewards[k] * factor + (scav ? 1 : 0) + leaderBonus));
     }
-    const bad = Math.random() < risk;
+    const bad = rng() < risk;
     if (bad) {
       const victim = random(team);
       victim.wounded = 2;
@@ -1104,7 +1231,8 @@
     state.board.forEach(c => {
       if (!c) return;
       c.away = false;
-      if (c.wounded > 0) c.wounded--;
+      if (c.wounded > 0) c.wounded -= (state.leader === 'medic' ? 2 : 1);
+      if (c.wounded < 0) c.wounded = 0;
     });
     rollWeather();
     if (state.morale <= 0) { endGame('bad'); return; }
@@ -1175,19 +1303,70 @@
   }
 
   // ---------- end ----------
+  function checkAchievements() {
+    const fresh = [];
+    for (const a of ACHIEVEMENTS) {
+      if (profile.achievements[a.id]) continue;
+      if (a.check()) {
+        profile.achievements[a.id] = true;
+        profile.embers += a.reward;
+        fresh.push(a);
+      }
+    }
+    return fresh;
+  }
+
   function endGame(kind) {
     if (state.phase === 'end') return;
+    state.endKind = kind;
     state.phase = 'end';
-    state.score = state.day * 10 + survivors() * 12 + state.parts * 18 + boardCards().length * 4 + Math.round(state.morale) * 2;
+    state.score = state.day * 10 + survivors() * 12 + state.parts * 18 + boardCards().length * 4 + Math.round(state.morale) * 2 + (state.endless ? state.day * 4 : 0);
     state.best = Math.max(state.best || 0, state.score);
-    try { localStorage.setItem('ember-camp-best', String(state.best)); } catch (e) {}
-    const info = {
-      good: { kicker: '救援到达', title: '电台响了', text: '第 15 天，救援队顺着信号找到了你们。火堆还亮着。' },
-      neutral: { kicker: '第 15 天', title: '你活下来了', text: '救援没有来。但你们还在，火也还在。也许明天会有信号。' },
-      bad: { kicker: '营地失守', title: '火灭了', text: '最后一个人倒下时，雪把营地盖住了。' }
-    }[kind];
-    overlay(`<div class="modal">
+
+    profile.stats.bestDay = Math.max(profile.stats.bestDay || 0, state.day);
+    profile.stats.bestScore = Math.max(profile.stats.bestScore || 0, state.score);
+    profile.stats.scavenges = (profile.stats.scavenges || 0) + (state.runStats.scavenges || 0);
+    if (kind === 'good') profile.stats.wins = (profile.stats.wins || 0) + 1;
+
+    const embers = Math.max(8, Math.floor(state.score / 14) + (kind === 'good' ? 25 : 0) + (state.endless ? Math.floor(state.day / 2) : 0)) * (isDaily() ? 2 : 1);
+    state.embersEarned = embers;
+    profile.embers += embers;
+
+    if (isDaily()) {
+      const today = todayKey();
+      const d = profile.daily;
+      if (d.date !== today) {
+        d.streak = d.lastDate === yesterdayKey() ? (d.streak || 1) + 1 : 1;
+        d.date = today;
+        d.best = 0;
+      }
+      d.best = Math.max(d.best || 0, state.score);
+      d.lastDate = today;
+    }
+
+    const fresh = checkAchievements();
+    profile.leaderboard.push({
+      score: state.score, day: state.day, kind, leader: state.leader,
+      mode: state.mode, date: todayKey()
+    });
+    profile.leaderboard.sort((a, b) => b.score - a.score);
+    profile.leaderboard = profile.leaderboard.slice(0, 5);
+    saveProfile();
+
+    const rank = kind === 'good'
+      ? (state.morale >= 70 && survivors() >= 4 ? 'S' : 'A')
+      : kind === 'neutral' ? 'B' : 'C';
+    const info = kind === 'good'
+      ? { kicker: '救援到达', title: '电台响了', text: '第 15 天，救援队顺着信号找到了你们。火堆还亮着。' }
+      : kind === 'neutral'
+        ? { kicker: '第 15 天', title: '你活下来了', text: '救援没有来。但你们还在，火也还在。也许明天会有信号。' }
+        : state.endless
+          ? { kicker: '无尽结束', title: '寒夜吞没了营地', text: `你撑到了第 ${state.day} 天。火灭了，但记录还在。` }
+          : { kicker: '营地失守', title: '火灭了', text: '最后一个人倒下时，雪把营地盖住了。' };
+
+    overlay(`<div class="modal end-modal">
       <div class="kicker">${info.kicker}</div>
+      <div class="end-rank rank-${rank}">${rank}</div>
       <h2>${info.title}</h2>
       <p>${info.text}</p>
       <div class="stats-grid">
@@ -1197,21 +1376,232 @@
       </div>
       <div class="stats-grid">
         <div class="stat-box"><b>${state.score}</b><span>本局得分</span></div>
-        <div class="stat-box"><b>${state.best}</b><span>最佳</span></div>
+        <div class="stat-box"><b>${profile.stats.bestScore}</b><span>最佳</span></div>
         <div class="stat-box"><b>${hasCard('radio') ? '已建' : '未建'}</b><span>电台</span></div>
       </div>
-      <button class="primary" id="againBtn">再撑一次</button>
+      <div class="ember-reward">余烬 +${embers}${isDaily() ? ' · 今日双倍' : ''}${fresh.length ? ` · 成就 +${fresh.reduce((n, a) => n + a.reward, 0)}` : ''}</div>
+      ${fresh.length ? `<div class="fresh-ach">${fresh.map(a => `<span>🏅 ${a.name}</span>`).join('')}</div>` : ''}
+      <button class="primary" id="againBtn">再来一局</button>
+      ${state.mode === 'standard' && kind !== 'bad' && survivors() > 0 ? '<button class="ghost" id="endlessBtn">继续撑 · 无尽</button>' : ''}
+      <button class="ghost" id="homeBtn">回营地</button>
       <button class="ghost" id="shareBtn">复制战绩</button>
     </div>`);
-    $('againBtn').onclick = () => { resetGame(); startRun(); };
-    $('shareBtn').onclick = () => copyText(`我在《末日卡牌堆·余烬》撑到第 ${state.day} 天，活下来 ${survivors()} 人，士气 ${Math.round(state.morale)}，得分 ${state.score}。你能撑到救援吗？`);
-    log(`本局结束：${info.title}。得分 ${state.score}。`, kind === 'good' ? 'good' : 'bad');
+    $('againBtn').onclick = () => startRun(state.mode, state.leader);
+    $('homeBtn').onclick = () => showHome();
+    $('shareBtn').onclick = () => copyText(`我在《末日卡牌堆·余烬》撑到第 ${state.day} 天，活下来 ${survivors()} 人，士气 ${Math.round(state.morale)}，得分 ${state.score}（${rank}）。你能撑到救援吗？`);
+    if ($('endlessBtn')) $('endlessBtn').onclick = () => continueEndless();
+    log(`本局结束：${info.title}。得分 ${state.score}，余烬 +${embers}。`, kind === 'good' ? 'good' : 'bad');
+  }
+
+  function continueEndless() {
+    if (state.endless) return;
+    state.mode = 'endless';
+    state.endless = true;
+    state.maxDay = 999;
+    state.endKind = null;
+    state.phase = 'day';
+    state.day++;
+    state.ap = 4;
+    state.explored = false;
+    state.tempDef = 0;
+    state.scavengeTeam = [];
+    state.board.forEach(c => {
+      if (!c) return;
+      c.away = false;
+      if (c.wounded > 0) c.wounded -= (state.leader === 'medic' ? 2 : 1);
+      if (c.wounded < 0) c.wounded = 0;
+    });
+    rollWeather();
+    drawCards(2);
+    closeOverlay();
+    render();
+    log(`无尽寒夜：第 ${state.day} 天。能撑多久？`, 'good');
+    toast('无尽寒夜 · 继续');
+    maybeEvent();
+  }
+
+  // ---------- home / meta ----------
+  function previewDailyMod() {
+    const r = mulberry32(hashString('ember-daily-' + todayKey()));
+    return DAILY_MODS[Math.floor(r() * DAILY_MODS.length)];
+  }
+
+  function showHome() {
+    state.phase = 'home';
+    state.started = false;
+    const dailyMod = previewDailyMod();
+    const dailyBest = profile.daily.date === todayKey() ? (profile.daily.best || 0) : 0;
+    const endlessOk = (profile.stats.wins || 0) > 0;
+    const board = profile.leaderboard.slice(0, 3).map((x, i) =>
+      `<div class="home-rank"><b>${i + 1}</b><span>${x.score}</span><em>${x.kind === 'good' ? '救援' : x.kind === 'neutral' ? '活下来' : '失守'} · ${x.leader || ''}</em></div>`
+    ).join('');
+    overlay(`<div class="modal home-modal">
+      <div class="home-glow"></div>
+      <div class="kicker">SURVIVAL CARD ROGUELIKE</div>
+      <h2>末日卡牌堆 <span>余烬</span></h2>
+      <p>15 天，一座营地，一堆牌。每一次重开，都会比上一次多一点东西。</p>
+      <div class="home-stats">
+        <div><b>${profile.embers}</b><span>余烬</span></div>
+        <div><b>${profile.stats.bestScore || 0}</b><span>最佳得分</span></div>
+        <div><b>${profile.stats.wins || 0}</b><span>救援次数</span></div>
+        <div><b>${profile.daily.streak || 0}</b><span>连续挑战</span></div>
+      </div>
+      <button class="primary" id="homeStart">开始新的一局</button>
+      <button class="ghost" id="homeDaily">今日挑战 · ${dailyMod.icon} ${dailyMod.name}<small>${dailyBest ? '今日最佳 ' + dailyBest : '今日还没打'}</small></button>
+      <button class="ghost" id="homeEndless" ${endlessOk ? '' : 'disabled'}>无尽寒夜<small>${endlessOk ? '撑到死为止，冲最高分' : '通关一次后解锁'}</small></button>
+      <div class="home-row">
+        <button class="ghost" id="homeMeta">🔥 营地传承</button>
+        <button class="ghost" id="homeAch">🏅 成就</button>
+        <button class="ghost" id="homeHelp">玩法</button>
+      </div>
+      <div class="home-board">
+        <div class="home-board-title">本地营地榜 <span>TOP 3</span></div>
+        ${board || '<div class="home-empty">还没有记录。第一局就是你的。</div>'}
+      </div>
+    </div>`);
+    $('homeStart').onclick = () => showLeaderSelect('standard');
+    $('homeDaily').onclick = () => showLeaderSelect('daily');
+    if ($('homeEndless')) $('homeEndless').onclick = () => { if (endlessOk) showLeaderSelect('endless'); };
+    $('homeMeta').onclick = showMeta;
+    $('homeAch').onclick = showAchievements;
+    $('homeHelp').onclick = () => showTutorial(false);
+  }
+
+  function showLeaderSelect(mode) {
+    state.mode = mode;
+    state.phase = 'leader';
+    if (!profile.leaders.includes(state.pendingLeader)) state.pendingLeader = profile.leaders[0];
+    renderLeaderSelect();
+  }
+
+  function renderLeaderSelect() {
+    const dailyMod = previewDailyMod();
+    const modeLabel = state.mode === 'daily' ? `今日挑战 · ${dailyMod.icon} ${dailyMod.name}` : state.mode === 'endless' ? '无尽寒夜' : '新的一局';
+    const modeDesc = state.mode === 'daily' ? dailyMod.desc : state.mode === 'endless' ? '没有第 15 天。夜袭会一直变强，撑到死为止。' : '撑到第 15 天，集齐零件，呼叫救援。';
+    const cards = LEADERS.map(l => {
+      const unlocked = profile.leaders.includes(l.id);
+      const selected = state.pendingLeader === l.id;
+      return `<button class="leader-card ${selected ? 'selected' : ''}" data-leader="${l.id}">
+        <img src="assets/icons/${l.icon}.png" alt="">
+        <b>${l.name}</b>
+        <span>${l.desc}</span>
+        <em>${unlocked ? (selected ? '已选择' : '选择') : `解锁 ${l.cost} 余烬`}</em>
+      </button>`;
+    }).join('');
+    overlay(`<div class="modal">
+      <div class="kicker">${modeLabel}</div>
+      <h2>选一个领袖</h2>
+      <p>${modeDesc}</p>
+      <div class="leader-list">${cards}</div>
+      <button class="primary" id="leaderStart">出发</button>
+      <button class="ghost" id="leaderBack">回营地</button>
+    </div>`);
+    document.querySelectorAll('[data-leader]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.leader;
+        const l = leaderById(id);
+        if (!profile.leaders.includes(id)) {
+          if (profile.embers < l.cost) { toast(`余烬不够：需要 ${l.cost}`); return; }
+          profile.embers -= l.cost;
+          profile.leaders.push(id);
+          saveProfile();
+          toast(`解锁 ${l.name}`);
+        }
+        state.pendingLeader = id;
+        renderLeaderSelect();
+      };
+    });
+    $('leaderStart').onclick = () => startRun(state.mode, state.pendingLeader);
+    $('leaderBack').onclick = showHome;
+  }
+
+  function showMeta() {
+    state.phase = 'meta';
+    const rows = META_UPGRADES.map(u => {
+      const level = profile.upgrades[u.id] || 0;
+      const cost = metaCost(u);
+      const maxed = level >= u.max;
+      const can = !maxed && profile.embers >= cost;
+      return `<div class="meta-row">
+        <img src="assets/icons/${u.icon}.png" alt="">
+        <div><b>${u.name} <em>Lv.${level}/${u.max}</em></b><span>${u.desc}</span></div>
+        <button data-buy="${u.id}" ${can ? '' : 'disabled'}>${maxed ? '满级' : cost + ' 余烬'}</button>
+      </div>`;
+    }).join('');
+    const leaderRows = LEADERS.map(l => {
+      const ok = profile.leaders.includes(l.id);
+      return `<div class="meta-row">
+        <img src="assets/icons/${l.icon}.png" alt="">
+        <div><b>${l.name}</b><span>${l.desc}</span></div>
+        <button data-unlock="${l.id}" ${ok ? 'disabled' : ''}>${ok ? '已解锁' : l.cost + ' 余烬'}</button>
+      </div>`;
+    }).join('');
+    overlay(`<div class="modal">
+      <div class="kicker">营地传承 · 余烬 ${profile.embers}</div>
+      <h2>把上一局带回来</h2>
+      <p>余烬在每局结束后获得；买下的传承会永久生效。</p>
+      <div class="meta-section">开局补给</div>
+      <div class="meta-list">${rows}</div>
+      <div class="meta-section">领袖</div>
+      <div class="meta-list">${leaderRows}</div>
+      <button class="ghost" id="metaBack">回营地</button>
+    </div>`);
+    document.querySelectorAll('[data-buy]').forEach(btn => {
+      btn.onclick = () => buyMeta(btn.dataset.buy);
+    });
+    document.querySelectorAll('[data-unlock]').forEach(btn => {
+      btn.onclick = () => {
+        const l = leaderById(btn.dataset.unlock);
+        if (profile.leaders.includes(l.id)) return;
+        if (profile.embers < l.cost) { toast(`余烬不够：需要 ${l.cost}`); return; }
+        profile.embers -= l.cost;
+        profile.leaders.push(l.id);
+        saveProfile();
+        toast(`解锁 ${l.name}`);
+        showMeta();
+      };
+    });
+    $('metaBack').onclick = showHome;
+  }
+
+  function buyMeta(id) {
+    const u = META_UPGRADES.find(x => x.id === id);
+    if (!u) return;
+    const level = profile.upgrades[id] || 0;
+    if (level >= u.max) return;
+    const cost = metaCost(u);
+    if (profile.embers < cost) { toast(`余烬不够：需要 ${cost}`); return; }
+    profile.embers -= cost;
+    profile.upgrades[id] = level + 1;
+    saveProfile();
+    toast(`${u.name} 升到 Lv.${level + 1}`);
+    showMeta();
+  }
+
+  function showAchievements() {
+    state.phase = 'ach';
+    const rows = ACHIEVEMENTS.map(a => {
+      const ok = !!profile.achievements[a.id];
+      return `<div class="ach-row ${ok ? 'unlocked' : ''}">
+        <div class="ach-icon">${ok ? '🏅' : '🔒'}</div>
+        <div><b>${a.name}</b><span>${a.desc}</span></div>
+        <em>+${a.reward} 余烬</em>
+      </div>`;
+    }).join('');
+    overlay(`<div class="modal">
+      <div class="kicker">成就 · 已解锁 ${Object.keys(profile.achievements).length}/${ACHIEVEMENTS.length}</div>
+      <h2>下一局想做什么</h2>
+      <p>成就自动结算，给余烬，也给下一局多一点目标。</p>
+      <div class="ach-list">${rows}</div>
+      <button class="ghost" id="achBack">回营地</button>
+    </div>`);
+    $('achBack').onclick = showHome;
   }
 
   // ---------- tutorial / overlay ----------
   function showTutorial(first = false) {
     overlay(`<div class="modal">
-      <div class="kicker">SURVIVAL CARD GAME · 2.0</div>
+      <div class="kicker">SURVIVAL CARD GAME · 2.1</div>
       <h2>末日卡牌堆 <span>余烬</span></h2>
       <p>15 天，撑到救援。你只有一双手、一堆牌和一座快灭的火。</p>
       <ul>
@@ -1221,14 +1611,15 @@
         <li><b>探索：</b>派 1-2 人出门，带回资源/卡牌，但今晚不防守，也可能受伤。</li>
         <li><b>过夜：</b>烧柴、生产、吃饭、挡夜袭；防御不够可牺牲牌或让人受伤。</li>
         <li><b>目标：</b>3 个电台零件 + 电台，撑到第 15 天。</li>
+        <li><b>传承：</b>每局结束拿余烬，回营地买永久升级/解锁领袖。</li>
       </ul>
       <p style="font-size:9px;color:#8d9b8a;margin-top:4px">素材：Kenney Board Game Icons / Board Game Pack（CC0 1.0）</p>
-      <button class="primary" id="startBtn">${first ? '点燃篝火' : '继续'}</button>
+      <button class="primary" id="startBtn">${first ? '开始' : '知道了'}</button>
     </div>`);
     $('startBtn').onclick = () => {
       closeOverlay();
-      if (first) startRun();
-      else { state.phase = state.started ? 'day' : 'tutorial'; render(); }
+      if (state.started) { state.phase = 'day'; render(); }
+      else showHome();
     };
   }
 
@@ -1256,10 +1647,18 @@
   }
 
   // ---------- setup ----------
-  function resetGame() {
+  function resetGame(leader = state.leader, mode = state.mode) {
     uidCounter = 0;
+    state.leader = leaderById(leader).id;
+    state.mode = mode;
+    state.endless = mode === 'endless';
+    state.pendingLeader = state.leader;
+    state.maxDay = state.endless ? 999 : 15;
+    state.dailyMod = mode === 'daily' ? previewDailyMod() : null;
+    runRng = mode === 'daily'
+      ? mulberry32(hashString('ember-daily-' + todayKey()))
+      : Math.random;
     state.day = 1;
-    state.maxDay = 15;
     state.ap = 4;
     state.food = 8;
     state.wood = 10;
@@ -1270,6 +1669,11 @@
     state.parts = 0;
     state.weather = 'clear';
     state.tempDef = 0;
+    state.fuelDiscount = profile.upgrades.fuel || 0;
+    state.maxCardLevel = 1;
+    state.endKind = null;
+    state.embersEarned = 0;
+    state.runStats = { scavenges: 0, upgrades: 0, crafts: 0, maxSurvivors: 0 };
     state.board = Array(12).fill(null);
     state.board[0] = makeCard('survivor');
     state.board[1] = makeCard('campfire');
@@ -1290,20 +1694,42 @@
     state.firstPlay = false;
     state.firstCombine = false;
     state.firstUpgrade = false;
-    try {
-      const b = Number(localStorage.getItem('ember-camp-best') || 0);
-      state.best = Number.isFinite(b) ? b : 0;
-    } catch (e) { state.best = 0; }
+    state.best = profile.stats.bestScore || 0;
+
+    // 营地传承
+    const u = profile.upgrades;
+    state.food += 2 * (u.supply || 0);
+    state.wood += 2 * (u.wood || 0);
+    state.metal += 1 * (u.metal || 0);
+    state.medicine += 1 * (u.medicine || 0);
+    state.morale = clamp(state.morale + 8 * (u.morale || 0), 0, 100);
+    if (state.leader === 'medic') state.medicine += 1;
+    if (state.leader === 'engineer') state.metal += 1;
+
+    if (mode === 'daily' && state.dailyMod) {
+      for (const [k, v] of Object.entries(state.dailyMod.start || {})) state[k] += v;
+      if (state.dailyMod.morale) state.morale = clamp(state.morale + state.dailyMod.morale, 0, 100);
+    }
+
     log('第 1 天。你们在废墟里点起篝火。');
-    log('目标：撑到第 15 天，集齐 3 个电台零件。');
+    if (mode === 'daily') log(`今日挑战：${state.dailyMod.name}。${state.dailyMod.desc}。`, 'good');
+    else if (mode === 'endless') log('无尽寒夜：没有第 15 天，只有能撑多久。', 'good');
+    else log('目标：撑到第 15 天，集齐 3 个电台零件。');
+    const leadData = leaderById(state.leader);
+    log(`领袖：<b>${leadData.name}</b>。${leadData.desc}`);
   }
 
-  function startRun() {
+  function startRun(mode = 'standard', leader = state.leader) {
+    resetGame(leader, mode);
     state.started = true;
     state.phase = 'day';
     closeOverlay();
+    profile.stats.runs = (profile.stats.runs || 0) + 1;
+    saveProfile();
     render();
     sound('place');
+    if (mode === 'daily') toast(`今日挑战 · ${state.dailyMod.name}`);
+    else if (mode === 'endless') toast('无尽寒夜开始');
   }
 
   function bind() {
@@ -1342,16 +1768,27 @@
     });
   }
 
-  resetGame();
-  state.phase = 'tutorial';
+  resetGame('scavenger', 'standard');
+  state.phase = 'home';
   state.started = false;
   bind();
   render();
-  showTutorial(true);
+  showHome();
 
   window.__game = {
-    state, render, endDay, endGame, resetGame, getStats, startRun,
+    state, profile, render, endDay, endGame, resetGame, getStats, startRun,
     maybeEvent, showBreach, showScavenge, showWorkshop, showOps,
-    upgradeCard, chooseScavenge, doOp
+    upgradeCard, chooseScavenge, doOp, showHome, showLeaderSelect,
+    showMeta, showAchievements, continueEndless, checkAchievements
   };
 })();
+
+
+
+
+
+
+
+
+
+

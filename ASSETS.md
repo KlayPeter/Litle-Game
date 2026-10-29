@@ -1,4 +1,4 @@
-# 素材调研与使用说明
+﻿# 素材调研与使用说明
 
 ## 选定的视觉方向：余烬纸牌
 
@@ -55,7 +55,7 @@
 | 陷阱 | `spinner.png` | 机关 |
 | 电台 | `structure_watchtower.png` | 塔/天线 |
 | 堡垒 | `structure_gate.png` | 城门 |
-| 温室 | `structure_farm.png` | 农田（复用） |
+| 温室 | `structure_farm.png` | 农田（复用） |`r`n| 尖刺墙 | `structure_wall.png` | 城墙（复用） |`r`n| 家园 | `structure_house.png` | 房子（复用） |`r`n| 瞭望塔 | `structure_tower.png` | 塔（复用） |
 | 食物 | `resource_apple.png` | 苹果 |
 | 木头 | `resource_wood.png` | 原木 |
 | 金属 | `resource_iron.png` | 金属 |
@@ -63,7 +63,7 @@
 | 电台零件 | `puzzle.png` | 拼图块 |
 | 夜袭 | `skull.png` | 骷髅 |
 | 防御 | `shield.png` | 盾 |
-| 行动点 | `hourglass.png` | 沙漏 |
+| 行动点 | `hourglass.png` | 沙漏 |`r`n| 研究 | `book_open.png` | 书 |
 
 ## 没有用的素材（以及为什么）
 
@@ -93,3 +93,4 @@
 - 游戏内没有外部字体，全部使用系统字体，避免字体授权问题。
 - 背景、卡牌纹理、火光、雪都是 CSS，不额外加载大图。
 - 如果以后要加角色立绘/剧情插画，建议先定“余烬纸牌”的色板和线宽，再找画师，避免风格漂移。
+
