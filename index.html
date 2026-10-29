@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>末日卡牌堆 · 余烬</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">🔥</div>
+      <div class="brand-text">
+        <h1>末日卡牌堆 <span>余烬</span></h1>
+        <p>10 天，撑到救援</p>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="hud-item day"><span>DAY</span><b id="hudDay">1</b><small>/10</small></div>
+      <div class="hud-item"><img src="assets/icons/resource_apple.png" alt=""><b id="hudFood">6</b></div>
+      <div class="hud-item"><img src="assets/icons/resource_wood.png" alt=""><b id="hudWood">8</b></div>
+      <div class="hud-item"><img src="assets/icons/resource_iron.png" alt=""><b id="hudMetal">3</b></div>
+      <div class="hud-item"><img src="assets/icons/flask_full.png" alt=""><b id="hudMedicine">1</b></div>
+      <div class="hud-item"><img src="assets/icons/character.png" alt=""><b id="hudSurvivors">2</b></div>
+      <button id="soundBtn" class="icon-btn" aria-label="声音">🔊</button>
+      <button id="helpBtn" class="icon-btn" aria-label="帮助">?</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="main-col">
+      <div class="camp-panel">
+        <div class="camp-head">
+          <div>
+            <span class="camp-kicker">你的营地</span>
+            <h2>把能活的牌，摆到火堆旁。</h2>
+          </div>
+          <div class="camp-head-right">
+            <div class="mini-night">
+              今夜 <img src="assets/icons/skull.png" alt=""><b id="miniAttack">3</b>
+              <span>·</span>
+              <img src="assets/icons/shield.png" alt=""><b id="miniDef">3</b>
+            </div>
+            <div class="ap-box"><span>行动点</span><b id="apLabel">3</b><small>/ 3</small></div>
+          </div>
+        </div>
+
+        <div id="board" class="board" aria-label="营地棋盘"></div>
+
+        <div class="camp-foot">
+          <span id="campHint">点手牌 → 点空位；点两张营地牌可以合成。</span>
+          <span class="camp-legend"><i class="dot survivor"></i>人 <i class="dot structure"></i>建筑 <i class="dot item"></i>道具 <span class="parts-mini">📻 <b id="partsMini">0/3</b></span></span>
+        </div>
+      </div>
+
+      <div class="hand-panel">
+        <div class="hand-head">
+          <div><span class="hand-kicker">手牌</span><b id="handCount">4</b></div>
+          <span>点击选中，再点营地空位</span>
+        </div>
+        <div id="hand" class="hand"></div>
+        <div id="detail" class="detail">点一张手牌查看详情。</div>
+      </div>
+
+      <div class="actions">
+        <button id="exploreBtn" class="action-btn">🔍 探索 <small>1 AP</small></button>
+        <button id="endDayBtn" class="action-btn primary">🌙 结束白天</button>
+        <button id="supplyBtn" class="action-btn ghost">📺 空投补给</button>
+      </div>
+    </section>
+
+    <aside class="side-col">
+      <div class="panel night-panel">
+        <div class="panel-title"><h3>今夜</h3><span id="nightPhase">天黑前</span></div>
+        <div class="night-row">
+          <div class="night-stat"><img src="assets/icons/skull.png" alt=""><span>袭击</span><b id="attackLabel">3</b></div>
+          <div class="night-stat"><img src="assets/icons/shield.png" alt=""><span>防御</span><b id="defenseLabel">3</b></div>
+        </div>
+        <div class="meter"><i id="defBar"></i></div>
+        <p id="nightHint">防线够，能守住。</p>
+      </div>
+
+      <div class="panel objective-panel">
+        <div class="panel-title"><h3>救援</h3><span id="radioState">未建电台</span></div>
+        <div id="partsRow" class="parts-row"></div>
+        <p>集齐 3 个零件，建电台，第 10 天呼叫救援。</p>
+      </div>
+
+      <div class="panel log-panel">
+        <div class="panel-title"><h3>营地日志</h3><span id="logDay">DAY 1</span></div>
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="overlay" class="overlay hidden"></div>
+<div id="toast" class="toast"></div>
+<div id="floats" class="floats"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
