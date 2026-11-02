@@ -1,0 +1,16 @@
+export const W=480,H=560;
+export const STATIONS=[{name:'岗厦北',event:'先下后上',tip:'先让蓝色乘客下车，门口就会出现空隙。'},{name:'车公庙',event:'换乘人潮',tip:'下车人流更密，乘客左右晃动，别一直顶着门中央。'},{name:'后海',event:'下班大军',tip:'背包客更难推动，侧身绕开他们再往里走。'}];
+export function bounds(g){return g.mode==='bus'?{left:105,right:375,top:75,bottom:425}:{left:65,right:415,top:75,bottom:425};}
+export function create(mode='metro',stage=1){const g={mode,stage,people:[],phase:'play',time:0,stamina:100,strain:0,inside:0,input:{x:0,y:0},player:{id:-1,x:240,y:489,r:17,vx:0,vy:0,color:0},shoves:3,stumble:0,fx:0};const b=bounds(g),cols=mode==='bus'?6:8,rows=stage+3;for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const id=row*cols+col;g.people.push({id,x:b.left+22+col*(b.right-b.left-44)/(cols-1)+(row%2?5:-5),y:390-row*42,r:id%9===0?21:18,color:id%6,mass:id%9===0?2.2:1,role:col===Math.floor(cols/2)&&row<stage+1?'exit':'stay',vx:0,vy:0});}return g;}
+export function shove(g){if(g.phase!=='play'||g.shoves===0)return false;g.shoves--;const p=g.player;for(const c of g.people){const dx=c.x-p.x,dy=c.y-p.y,d=Math.hypot(dx,dy)||1;if(d<100){c.vx+=dx/d*210/(c.mass||1);c.vy+=dy/d*210/(c.mass||1);g.fx=.4;}}return true;}
+export function step(g,dt){if(g.phase!=='play')return;dt=Math.max(0,Math.min(dt,1/30));g.time+=dt;const b=bounds(g),p=g.player;let {x,y}=g.input;const len=Math.hypot(x,y);if(!Number.isFinite(len)){x=0;y=0}else if(len>1){x/=len;y/=len}g.stumble=Math.max(0,g.stumble-dt);g.fx=Math.max(0,g.fx-dt);const previousY=p.y;const moving=Math.hypot(x,y)>.1;const speed=g.stumble>0?35:115;p.vx+=(x*speed-p.vx)*Math.min(1,dt*10);p.vy+=(y*speed-p.vy)*Math.min(1,dt*10);p.x+=p.vx*dt;p.y+=p.vy*dt;
+ for(const c of g.people){const exit=c.role==='exit';const tx=exit?(c.y<440?240:90+(c.id%2)*300):c.x;const ty=exit?555:c.y;const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1;const flow=exit?55:0;c.vx+=(dx/d*flow+Math.sin(g.time*1.7+c.id)*14-c.vx)*dt*3;c.vy+=(dy/d*flow+(!exit?Math.sin(g.time*1.3+c.id)*10:0)-c.vy)*dt*3;c.x+=c.vx*dt;c.y+=c.vy*dt;}
+ let contact=0;for(let n=0;n<4;n++){const all=[...g.people,p];for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){const a=all[i],c=all[j],dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy)||.01,over=a.r+c.r-d;if(over>0){const nx=dx/d,ny=dy/d,pc=c===p,share=(a.mass||1)/((a.mass||1)+(pc?1.3:(c.mass||1)));a.x-=nx*over*(1-share);a.y-=ny*over*(1-share);c.x+=nx*over*share;c.y+=ny*over*share;if(pc)contact++;}}
+ for(const c of g.people){c.x=Math.max(b.left+c.r,Math.min(b.right-c.r,c.x));c.y=Math.max(b.top+c.r,Math.min(c.role==='exit'?580:419-c.r,c.y));if(c.role==='exit'&&c.y>400&&c.y<443)c.x=Math.max(192+c.r,Math.min(288-c.r,c.x));}
+ p.x=Math.max(25,Math.min(W-25,p.x));p.y=Math.max(b.top+p.r,Math.min(520,p.y));
+ // shortcut: rectangular doorway collision; use swept collision if movement speed grows.
+ if(p.y<443&&p.y>408){if(p.x<192+p.r||p.x>288-p.r){p.y=previousY>=443?443:408;}else{p.x=Math.max(192+p.r,Math.min(288-p.r,p.x));}}else if(p.y<=408){p.x=Math.max(b.left+p.r,Math.min(b.right-p.r,p.x));}
+ }
+ g.strain=contact;g.stamina=Math.max(0,Math.min(100,g.stamina+dt*(moving&&contact>3?-12:18)));
+ g.people=g.people.filter(c=>c.y<565);if(g.stamina===0){g.stumble=1.2;g.stamina=25;p.vy=70;}g.inside=p.y<175?g.inside+dt:0;if(g.inside>=1.5)g.phase='win';
+}

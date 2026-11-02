@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>下班别堵了 · 分批开城</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="puzzle.css"><link rel="stylesheet" href="city.css"></head><body>
+<header><a href="./" class="brand"><span class="brand-icon">↗</span><span>上班下班<small>← 返回游戏大厅</small></span></a><button id="citySound" class="icon">♪ 音效关</button></header>
+<main><section class="sidebar"><div class="eyebrow">先接眼前这条路，还是留给下一家？</div><h1>小城长大，<br>留一条<span>后路。</span></h1><p class="intro">每次开通两条线。<br>看看下一批邻居，再决定怎么走。</p>
+<nav class="play-modes" aria-label="玩法"><a href="./">游戏大厅</a><a href="jiditie/">挤地铁</a><a href="flick.html">↗ 弹射</a><a href="race.html">⚡ 竞速</a><a href="puzzle.html">解谜</a></nav>
+<div class="stage-track" id="stages"></div><div class="puzzle-rules"><b>这次，没有倒计时</b><ol><li>连接当前批次同字母的住宅与站点，不需要填满地图。</li><li>虚线标记是下一批邻居，提前给他们留路。</li><li>通车后旧线锁定；每批一次免费改线，还可回退。</li></ol><p>立交让两线共用一格；隧道跨过一格；道路包增加6格预算。</p></div>
+<div class="city-side-actions"><button id="sameCity" class="secondary">重试同一城</button><button id="newCity" class="secondary">换一座城 ↗</button><button id="cityRecords" class="text-button">本机开城记录 ↗</button></div><small class="honest">广告为5秒模拟，无支付。<br>地图与工具选择均在本地运行。</small></section>
+<section class="play-area"><div class="dashboard"><div><span id="citySeed"></span><strong id="cityTitle"></strong></div><div class="clock"><span>已安顿住户</span><strong id="residents">0</strong></div></div>
+<div class="objective"><b id="cityProgress"></b><p id="cityStatus" role="status"></p><div class="line-picker" id="cityLines"></div></div>
+<div id="cityBoard" class="puzzle-board" role="group" aria-label="分批开城地图"></div>
+<div class="resource-strip" id="resources"></div><div class="puzzle-actions"><button id="dispatch" class="primary">▶ 通车 · 迎接新邻居</button><button id="cityUndo" class="secondary">撤销</button><button id="cityErase" class="secondary">清除选中线</button></div>
+<div class="city-tools"><button id="unlock" class="secondary">改选中旧线</button><button id="tunnelMode" class="secondary" aria-pressed="false">隧道模式：关</button><button id="rollback" class="secondary">回退上一批</button></div>
+<div class="map-caption"><span>⌂ 住宅 · ▣ 站点 · 虚线：下一批 · 锁：已通车</span></div></section></main>
+<footer><span>小城路政所 · 一批一批，把小城点亮</span><span>不拼时间，给下一步留余地。</span></footer><dialog id="cityDialog"><div id="cityDialogBody"></div></dialog><script type="module" src="city.mjs"></script></body></html>

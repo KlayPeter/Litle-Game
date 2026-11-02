@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>下班别堵了 · 烧脑规划</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="puzzle.css"></head><body>
+<header><a href="./" class="brand"><span class="brand-icon">↗</span><span>上班下班<small>← 返回游戏大厅</small></span></a><span class="stamp">慢慢想，也能赢</span></header>
+<main><section class="sidebar"><div class="eyebrow">路就这么多，谁该绕一下？</div><h1>不拼快，<br>这次<span>拼脑子。</span></h1><p class="intro">六条路线，不能抢同一格。<br>你的一条捷径，可能堵住别人的出路。</p>
+<nav class="play-modes" aria-label="玩法"><a href="./">游戏大厅</a><a href="flick.html">↗ 弹射</a><a href="race.html">⚡ 竞速</a><a class="selected" href="puzzle.html" aria-current="page">解谜</a><a href="jiditie/">挤地铁</a></nav>
+<div class="levels" id="puzzleLevels"></div><p class="mode-info">三张图均可直接体验 · 没有倒计时</p>
+<div class="puzzle-rules"><b>验收条件</b><ol><li>连接同字母、同颜色的 ⌂ 与 ▣。</li><li>每格最多一条线路，不能交叉。</li><li>必须覆盖每一格！只接通两端不算过关。</li><li>极难题：每线恰好用完各自格数，且经过同字母◇必经站。</li></ol><p>拖动画线，也可逐格点击。点已有线路可回退；方向键移动焦点，空格落笔。</p></div>
+<button id="records" class="text-button">本机通关记录 ↗</button><small class="honest">广告为5秒模拟，无真实广告或支付。<br>辅助解题会单独标记，成绩仅存本机。</small></section>
+<section class="play-area"><div class="dashboard"><div><span>烧脑规划 · 不限时</span><strong id="puzzleTitle"></strong></div><div class="clock"><span>布局时间</span><strong>∞</strong></div></div>
+<div class="objective"><b id="progress"></b><p id="status" role="status">先点一个住宅，再拖出路线。</p><div id="linePicker" class="line-picker" aria-label="选择线路"></div></div>
+<div class="puzzle-board" id="board" role="group" aria-label="街区地图"></div>
+<div class="puzzle-actions"><button id="verify" class="primary">▶ 发车验收</button><button id="undoPlan" class="secondary">撤销</button><button id="eraseLine" class="secondary">清除选中线</button><button id="resetPlan" class="secondary">清空重画</button></div>
+<div class="map-caption"><span>每个空白格都必须铺路 · 不允许斜线和跨线</span><button id="hintPlan" class="text-button">▶ 模拟广告 · 参考一条路线</button></div>
+</section></main><footer><span>小城路政所 · PLANNING OFFICE</span><span>先规划，再出发。</span></footer><dialog id="puzzleDialog"><div id="puzzleDialogBody"></div></dialog><script type="module" src="puzzle.mjs"></script></body></html>
