@@ -114,3 +114,8 @@ node --check traffic/puzzle.mjs
 - 机制参考：Crowd Simulator（https://store.steampowered.com/app/1141650/）与 jiditie（https://github.com/ns2250225/jiditie ，查阅提交 b446f05）。后者未发现明确许可证，本项目未导入其源码或资源，沿用自己的 Canvas 实现。
 - 站名核对：深圳市交通运输局 https://jtys.sz.gov.cn/zwgk/ggqsydw/dt/index.html 。本原型与深圳地铁无隶属关系。
 - 尚未实现完整 3D 布娃娃、全线战役、随机客流事件和成就系统。
+
+### 极限泊车（parking.html）
+停车分类现在包含弹射与驾驶两种模式。驾驶版为独立原创 Canvas 原型，无新增依赖：倒车入库、侧方停车、柱旁泊车三关。左手方向盘/方向键转向，右手前进与倒车，松开踏板刹停；车身完全入位、朝向误差低于约 5°、停稳 1 秒通关。擦碰不终止练习，支持回退上一段换向操作。当前为低速运动学模型，无真实广告、联网排行或驾驶教学认证。
+
+验证：`node traffic/parking.test.mjs` 与 `node traffic/navigation.test.mjs`。
