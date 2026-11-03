@@ -29,3 +29,13 @@ export function tickFlick(g,dt){
  if(g.cars.every(c=>c.vx===0&&c.vy===0))g.settled+=dt;else g.settled=0;
  if(g.settled>.3){if(!g.bonusGiven&&g.shotParks.filter(id=>g.cars[id].parked>=0).length>=2){g.shots++;g.bonusGiven=true;g.events.push({type:'bonus'})}g.won=parkedCount(g)===g.layout.bays.length;g.phase=g.won||g.shots<=0?'end':'aim';g.events.push({type:g.phase==='end'?'end':'ready'})}
 }
+
+export function dailyChallenge(date){
+ const key=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+ const seed=Number(key.replaceAll('-',''));
+ return {key,seed,level:seed%FLICK_MAPS.length};
+}
+export function extraShot(g){
+ if(g.phase!=='end'||g.won||g.rewardUsed)return false;
+ g.rewardUsed=true;g.shots=1;g.phase='aim';g.events=[];return true;
+}

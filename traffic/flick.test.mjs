@@ -18,3 +18,7 @@ for(const level of [1,2])for(let seed=1;seed<=20;seed++){const game=newFlick(see
 console.log('PASS: real two-car combo refunds one shot, no bonus farming, spring triggers once per car/shot, both new layouts settle');
 for(const [level,moves] of [[1,[[2,200,-549],[4,-330,-617],[0,-1,-520],[3,266,-506],[3,-31,33]]],[2,[[2,533,-401],[3,-31,-642],[0,-230,-458],[1,200,-8]]]]){const game=newFlick(1,level);for(const [id,x,y] of moves){assert.equal(fire(game,id,x,y),true);settle(game)}assert.equal(game.won,true,`map ${level+1} must be winnable`)}
 console.log('PASS: both new maps won with legal shots within the available attempts');
+const {dailyChallenge,extraShot}=await import('./flick-core.mjs');
+assert.deepEqual(dailyChallenge(new Date(2026,10,3,1)),dailyChallenge(new Date(2026,10,3,23)));assert.notEqual(dailyChallenge(new Date(2026,10,3)).seed,dailyChallenge(new Date(2026,10,4)).seed);
+const revive=newFlick();assert.equal(extraShot(revive),false);revive.shots=1;fire(revive,0,30,0);settle(revive);assert.equal(extraShot(revive),true);assert.equal(revive.shots,1);assert.equal(revive.phase,'aim');fire(revive,0,30,0);settle(revive);assert.equal(extraShot(revive),false,'one reward per run');assert.equal(extraShot(win),false,'no reward after win');
+console.log('PASS: daily seed is stable and extra shot only once after a loss');
