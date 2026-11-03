@@ -6,7 +6,8 @@
 
 访问 `/traffic/` 进入「上班下班」游戏大厅。
 
-- `index.html` + `home.css`：三类玩法首页。
+- `index.html` + `lobby.css`：移动端三类玩法首页。
+- `shift.html`：新版下班接单，三单一轮的弹射挑战。
 - `flick.html`：弹射停车。
 - `race.html`：路线挑战 · 竞速（原 index.html 玩法）。
 - `puzzle.html`：路线挑战 · 解谜。
@@ -20,7 +21,7 @@
 在项目根目录运行：
 
 ```sh
-python3 -m http.server 8765 --bind 127.0.0.1
+python3 -m http.server 8765 --bind 0.0.0.0
 ```
 
 打开 http://localhost:8765/traffic/ 。使用 ES modules，需要 HTTP 服务，不支持直接双击 HTML。
@@ -128,3 +129,13 @@ node --check traffic/puzzle.mjs
 - `parking-solutions.json` 是六关合法路径的回归夹具；测试从真实起点推进并逐步验证碰撞和最终入位，不在游戏中自动驾驶。它验证几何可解性，不能代替手机手感测试。
 - 设计参考：[Parking Simulator](https://store.steampowered.com/app/3860440/Parking_Simulator/) 的不限时精准泊车、车型差异和评分；[You Suck at Parking](https://store.steampowered.com/app/837880/You_Suck_at_Parking__Complete_Edition/) 的短局挑战与每日挑战方向。未复制其素材或代码，未宣称复现完整 Steam 游戏。
 - 检查：`node traffic/flick.test.mjs`、`node traffic/parking.test.mjs`、`node traffic/navigation.test.mjs`。触屏布局按 390×844 浏览器视口检查，真实手机双指操作仍需实测。
+
+### 移动端接单版 · 2026-11-03
+
+大厅优先推荐 `shift.html`，保留经典弹射、精准泊车、路线与地铁入口。每轮三个不同停车场，每单五发；停好两辆可收下 200 分，或放弃这单保底继续冲四辆拿 500 分。双停仍奖励一发，成功结算额外加 50 分；冒险失败只损失当前单，前单分数保留。无倒计时，免费重开同一开局或换开局，本机保存最高分。新模式未接广告或在线排行榜。
+
+实现复用 `flick-core.mjs` 物理，以 `shift-core.mjs` 管理出手、选择、结算、下一单和整轮结束；UI 使用 120Hz 固定步长、切后台暂停、取消触控和弹窗焦点管理。刷新不保留进行中的对局。
+
+应用 frontend-design 和 UI UX Pro Max 的移动触控、视觉层级与反馈建议；参考 [game-developer 技能](https://github.com/jeffallan/claude-skills/blob/main/skills/game-developer/SKILL.md) 的状态隔离、固定步长和缓存建议。未安装未经核实的微信专项技能，仍是 Web 原型。
+
+验证：`node traffic/shift.test.mjs` 覆盖合法出手完成三单、保底、冒险失败、前单积分保护、重复领取拒绝及非法状态。浏览器验证 375×667、390×844 竖屏和 667×375 横屏滚动布局；实际触控拖拽触发保底选择。尚未验证真实手机性能、真人重玩率；三张地图复用旧布局，换开局主要改变车辆初始位置，不是无限地图。
