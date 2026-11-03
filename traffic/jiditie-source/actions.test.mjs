@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {newActions,advanceActions,usePull,pullBlocked,useDash,rewardAd,constrainBody} from './src/actions.ts';
+let a=newActions();assert.equal(usePull(a,23,0,0),false);assert.equal(a.charges,3);
+assert.ok(usePull(a,100,0,0));assert.equal(a.civil,80);assert.equal(a.charges,2);assert.equal(usePull(a,100,0,0),false);
+for(let i=0;i<120;i++)advanceActions(a,1/60);assert.ok(usePull(a,100,1,1));assert.equal(a.civil,40);
+for(let i=0;i<120;i++)advanceActions(a,1/60);assert.ok(usePull(a,100,1,1));assert.equal(a.civil,0);assert.equal(rewardAd(a),false);for(let i=0;i<600;i++)advanceActions(a,1/60);assert.equal(a.civil,0);
+a=newActions();a.charges=0;assert.ok(pullBlocked(a,100));assert.ok(rewardAd(a));assert.equal(a.charges,1);assert.equal(rewardAd(a),false);
+assert.equal(useDash(a,21),false);assert.ok(useDash(a,100));assert.equal(useDash(a,100),false);advanceActions(a,NaN);assert.equal(a.dashLeft,.32);
+let p={x:50,y:200,vx:0,vy:-100,r:15};assert.equal(constrainBody(p,false,true,240,480,650),false);assert.equal(p.y,245);
+p.x=240;p.y=210;assert.equal(constrainBody(p,false,true,240,480,650),true);assert.equal(constrainBody(p,true,false,240,480,650),false);assert.equal(p.y,265);
+console.log('PASS: charges, cooldown, stamina, civility ejection, no resurrection, one reward, dash and door constraints');
